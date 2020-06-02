@@ -209,39 +209,14 @@ set(LIB_TARGETS)
 
 # Use RTAUDIO_BUILD_SHARED_LIBS / RTAUDIO_BUILD_STATIC_LIBS if they
 # are defined, otherwise default to standard BUILD_SHARED_LIBS.
-if (DEFINED RTAUDIO_BUILD_SHARED_LIBS)
-  if (RTAUDIO_BUILD_SHARED_LIBS)
-    add_library(rtaudio SHARED ${rtaudio_SOURCES})
-  else()
-    add_library(rtaudio STATIC ${rtaudio_SOURCES})
-    set(RTAUDIO_IS_STATIC TRUE)
-  endif()
-elseif (DEFINED RTAUDIO_BUILD_STATIC_LIBS)
-  if (RTAUDIO_BUILD_STATIC_LIBS)
-    add_library(rtaudio STATIC ${rtaudio_SOURCES})
-    set(RTAUDIO_IS_STATIC TRUE)
-  else()
-    add_library(rtaudio SHARED ${rtaudio_SOURCES})
-  endif()
+if (RTAUDIO_BUILD_SHARED_LIBS)
+  add_library(rtaudio SHARED ${rtaudio_SOURCES})
+elseif (RTAUDIO_BUILD_STATIC_LIBS)
+  add_library(rtaudio STATIC ${rtaudio_SOURCES})
 else()
   add_library(rtaudio ${rtaudio_SOURCES})
-  if(NOT BUILD_SHARED_LIBS)
-    set(RTAUDIO_IS_STATIC TRUE)
-  endif()
 endif()
 list(APPEND LIB_TARGETS rtaudio)
-
-# In MSVC, set MD/MT appropriately for a static library
-# (From https://github.com/protocolbuffers/protobuf/blob/master/cmake/CMakeLists.txt)
-if(MSVC AND RTAUDIO_IS_STATIC)
-  foreach(flag_var
-      CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
-      CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-    if(${flag_var} MATCHES "/MD")
-      string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
-    endif(${flag_var} MATCHES "/MD")
-  endforeach(flag_var)
-endif()
 
 # Add headers destination for install rule.
 set_property(TARGET rtaudio PROPERTY PUBLIC_HEADER RtAudio.h rtaudio_c.h)
