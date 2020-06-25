@@ -1,8 +1,13 @@
 # Set minimum CMake required version for this project.
-cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 
 # Define a C++ project.
 project(RtAudio LANGUAGES CXX)
+
+# standards version
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Check for Jack (any OS)
 find_library(JACK_LIB jack)
@@ -88,8 +93,8 @@ set(FULL_VER "${SO_current_minus_age}.${SO_revision}.${SO_age}")
 # Read package version info from configure.ac
 set(R "AC_INIT\\(RtAudio, ([0-9\\.]+),.*\\)")
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/configure.ac" CONFIGAC
-  REGEX ${R})
-string(REGEX REPLACE ${R} "\\1" PACKAGE_VERSION ${CONFIGAC})
+  REGEX "${R}")
+string(REGEX REPLACE "${R}" "\\1" PACKAGE_VERSION "${CONFIGAC}")
 
 # Init variables
 set(rtaudio_SOURCES RtAudio.cpp RtAudio.h rtaudio_c.cpp rtaudio_c.h)
@@ -204,7 +209,6 @@ if (NEED_PTHREAD)
 endif()
 
 # Create library targets.
-cmake_policy(SET CMP0042 OLD)
 set(LIB_TARGETS)
 
 # Use RTAUDIO_BUILD_SHARED_LIBS / RTAUDIO_BUILD_STATIC_LIBS if they
