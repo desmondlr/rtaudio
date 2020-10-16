@@ -4558,6 +4558,7 @@ void RtApiWasapi::closeStream( void )
   if ( stream_.state != STREAM_STOPPED )
     stopStream();
 
+  MUTEX_LOCK(&stream_.mutex);
   // clean up stream memory
   SAFE_RELEASE( ( ( WasapiHandle* ) stream_.apiHandle )->captureAudioClient )
   SAFE_RELEASE( ( ( WasapiHandle* ) stream_.apiHandle )->renderAudioClient )
@@ -4588,6 +4589,7 @@ void RtApiWasapi::closeStream( void )
 
   // update stream state
   stream_.state = STREAM_CLOSED;
+  MUTEX_UNLOCK(&stream_.mutex);
 }
 
 //-----------------------------------------------------------------------------
@@ -4605,10 +4607,11 @@ void RtApiWasapi::startStream( void )
   #if defined( HAVE_GETTIMEOFDAY )
   gettimeofday( &stream_.lastTickTimestamp, NULL );
   #endif
-
+  MUTEX_LOCK(&stream_.mutex);
   // update stream state
   stream_.state = STREAM_RUNNING;
 
+  MUTEX_UNLOCK(&stream_.mutex);
   // create WASAPI stream thread
   stream_.callbackInfo.thread = ( ThreadHandle ) CreateThread( NULL, 0, runWasapiThread, this, CREATE_SUSPENDED, NULL );
 
@@ -4633,9 +4636,10 @@ void RtApiWasapi::stopStream( void )
     error( RtAudioError::WARNING );
     return;
   }
-
+  MUTEX_LOCK(&stream_.mutex);
   // inform stream thread by setting stream state to STREAM_STOPPING
   stream_.state = STREAM_STOPPING;
+  MUTEX_UNLOCK(&stream_.mutex);
 
   // wait until stream thread is stopped
   while( stream_.state != STREAM_STOPPED ) {
@@ -5200,6 +5204,7 @@ void RtApiWasapi::wasapiThread()
 
   // stream process loop
   while ( stream_.state != STREAM_STOPPING ) {
+    MUTEX_LOCK(&stream_.mutex);
     if ( !callbackPulled ) {
       // Callback Input
       // ==============
@@ -5487,6 +5492,7 @@ void RtApiWasapi::wasapiThread()
       callbackPulled = false;
     }
 
+    MUTEX_UNLOCK(&stream_.mutex);
   }
 
 Exit:
@@ -5499,10 +5505,10 @@ Exit:
   delete captureResampler;
 
   CoUninitialize();
-
+  
   // update stream state
   stream_.state = STREAM_STOPPED;
-
+  MUTEX_UNLOCK(&stream_.mutex);
   if ( !errorText.empty() )
   {
     errorText_ = errorText;
