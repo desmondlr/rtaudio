@@ -4634,13 +4634,6 @@ void RtApiWasapi::stopStream(void) {
     Sleep(1000 * stream_.bufferSize / stream_.sampleRate);
 
     MUTEX_LOCK(&stream_.mutex);
-    // close thread handle
-    if (stream_.callbackInfo.thread && !CloseHandle((void *)stream_.callbackInfo.thread)) {
-        errorText_ = "RtApiWasapi::stopStream: Unable to close callback thread.";
-        error(RtAudioError::THREAD_ERROR);
-        MUTEX_UNLOCK(&stream_.mutex);
-        return;
-    }
 
     stream_.callbackInfo.thread = (ThreadHandle)NULL;
     MUTEX_UNLOCK(&stream_.mutex);
@@ -4667,14 +4660,6 @@ void RtApiWasapi::abortStream(void) {
         Sleep(1);
     }
     MUTEX_LOCK(&stream_.mutex);
-    std::cout << "Hallo" << std::endl;
-    // close thread handle
-    if (stream_.callbackInfo.thread && !CloseHandle((void *)stream_.callbackInfo.thread)) {
-        errorText_ = "RtApiWasapi::abortStream: Unable to close callback thread.";
-        error(RtAudioError::THREAD_ERROR);
-        MUTEX_UNLOCK(&stream_.mutex);
-        return;
-    }
 
     stream_.callbackInfo.thread = (ThreadHandle)NULL;
     MUTEX_UNLOCK(&stream_.mutex);
@@ -5244,36 +5229,12 @@ void RtApiWasapi::wasapiThread() {
 
                 // Handle return value from callback
                 if (callbackResult == 1) {
-                    // instantiate a thread to stop this thread
-                    std::cout << "stopping wasapi thread from callback" << std::endl;
-                    threadHandle = CreateThread(NULL, 0, stopWasapiThread, this, 0, NULL);
-                    if (!threadHandle) {
-                        errorType = RtAudioError::THREAD_ERROR;
-                        errorText = "RtApiWasapi::wasapiThread: Unable to instantiate stream stop thread.";
-                        goto Exit;
-                    } /*else if (!CloseHandle(threadHandle)) {
-                        std::cout << "stopping wasapi thead closed" << std::endl;
-                        errorType = RtAudioError::THREAD_ERROR;
-                        errorText = "RtApiWasapi::wasapiThread: Unable to close stream stop thread handle.";
-                        goto Exit;
-                    }*/
-
+                    stream_.state = STREAM_STOPPING;
+                    // Wait for the last buffer to play before stopping.
+                    Sleep(1000 * stream_.bufferSize / stream_.sampleRate);
                     callbackStopped = true;
                 } else if (callbackResult == 2) {
-                    // instantiate a thread to stop this thread
-                    std::cout << "aborting wasapi thread from callback" << std::endl;
-                    threadHandle = CreateThread(NULL, 0, abortWasapiThread, this, 0, NULL);
-                    if (!threadHandle) {
-                        errorType = RtAudioError::THREAD_ERROR;
-                        errorText = "RtApiWasapi::wasapiThread: Unable to instantiate stream abort thread.";
-                        goto Exit;
-                    } /*else if (!CloseHandle(threadHandle)) {
-                        std::cout << "aborting wasapi thead closed" << std::endl;
-                        errorType = RtAudioError::THREAD_ERROR;
-                        errorText = "RtApiWasapi::wasapiThread: Unable to close stream abort thread handle.";
-                        goto Exit;
-                    }*/
-
+                    stream_.state = STREAM_STOPPING;
                     callbackStopped = true;
                 }
             }
@@ -5443,29 +5404,13 @@ Exit:
     delete renderResampler;
     delete captureResampler;
 
+    // Co uninitialize will close the thread handle
     CoUninitialize();
 
     // update stream state
     stream_.state = STREAM_STOPPED;
-    std::cout << "stream stopped" << std::endl;
     MUTEX_UNLOCK(&stream_.mutex);
 
-    // Wait for callback closeStream thread to complete!!
-    if (threadHandle) {
-        WaitForSingleObject(threadHandle, INFINITE);
-        if (!CloseHandle(threadHandle)) {
-            std::cout << "aborting wasapi thead closed" << std::endl;
-            errorType = RtAudioError::THREAD_ERROR;
-            errorText = "RtApiWasapi::wasapiThread: Unable to close stream abort thread handle.";
-        }
-    }
-    // close thread handle
-    // if (stream_.callbackInfo.thread && !CloseHandle((void *)stream_.callbackInfo.thread)) {
-    //    errorText_ = "RtApiWasapi::stopStream: Unable to close callback thread.";
-    //    error(RtAudioError::THREAD_ERROR);
-    //    MUTEX_UNLOCK(&stream_.mutex);
-    //    return;
-    //}
 
     if (!errorText.empty()) {
         std::cout << "wasapi thread error" << std::endl;
