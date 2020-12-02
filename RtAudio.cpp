@@ -5488,9 +5488,14 @@ void RtApiWasapi::wasapiThread()
       callbackPulled = false;
     }
 
+    MUTEX_UNLOCK(&stream_.mutex);
+    mutex_locked = false;
   }
 
 Exit:
+  if (!mutex_locked)
+    MUTEX_LOCK(&stream_.mutex);
+
   // clean up
   CoTaskMemFree( captureFormat );
   CoTaskMemFree( renderFormat );
@@ -5499,10 +5504,12 @@ Exit:
   delete renderResampler;
   delete captureResampler;
 
+  // Todo: double check CoUninitialize will close the thread handle
   CoUninitialize();
 
   // update stream state
   stream_.state = STREAM_STOPPED;
+    MUTEX_UNLOCK(&stream_.mutex);
 
   if ( !errorText.empty() )
   {
