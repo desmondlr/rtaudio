@@ -4560,19 +4560,17 @@ unsigned int RtApiWasapi::getDefaultInputDevice( void )
 
 void RtApiWasapi::closeStream( void )
 {
-  MUTEX_SPINLOCK( &stream_.mutex );
   if ( stream_.state == STREAM_CLOSED ) {
-    MUTEX_UNLOCK( &stream_.mutex );
     errorText_ = "RtApiWasapi::closeStream: No open stream to close.";
     error( RtAudioError::WARNING );
     return;
   }
 
   if ( stream_.state != STREAM_STOPPED ) {
-    MUTEX_UNLOCK( &stream_.mutex );
     stopStream();
-    MUTEX_LOCK( &stream_.mutex );
   }
+
+  MUTEX_SPINLOCK( &stream_.mutex );
 
   // clean up stream memory
   SAFE_RELEASE( ( ( WasapiHandle* ) stream_.apiHandle )->captureAudioClient )
@@ -4654,8 +4652,8 @@ void RtApiWasapi::stopStream( void )
   MUTEX_SPINLOCK( &stream_.mutex );
   if ( stream_.state == STREAM_STOPPED ) {
     errorText_ = "RtApiWasapi::stopStream: The stream is already stopped.";
-    error( RtAudioError::WARNING );
     MUTEX_UNLOCK( &stream_.mutex );
+    error( RtAudioError::WARNING );
     return;
   }
 
@@ -4686,8 +4684,8 @@ void RtApiWasapi::abortStream( void )
   MUTEX_SPINLOCK( &stream_.mutex );
   if ( stream_.state == STREAM_STOPPED ) {
     errorText_ = "RtApiWasapi::abortStream: The stream is already stopped.";
-    error( RtAudioError::WARNING );
     MUTEX_UNLOCK( &stream_.mutex );
+    error( RtAudioError::WARNING );
     return;
   }
 
@@ -5488,13 +5486,13 @@ void RtApiWasapi::wasapiThread()
       callbackPulled = false;
     }
 
-    MUTEX_UNLOCK(&stream_.mutex);
+    MUTEX_UNLOCK( &stream_.mutex );
     mutex_locked = false;
   }
 
 Exit:
-  if (!mutex_locked)
-    MUTEX_LOCK(&stream_.mutex);
+  if ( !mutex_locked )
+    MUTEX_LOCK( &stream_.mutex );
 
   // clean up
   CoTaskMemFree( captureFormat );
@@ -5504,12 +5502,18 @@ Exit:
   delete renderResampler;
   delete captureResampler;
 
-  // Todo: double check CoUninitialize will close the thread handle
+  if ( stream_.callbackInfo.thread && !CloseHandle( ( void* ) stream_.callbackInfo.thread ) ) {
+    errorText_ = "RtApiWasapi::stopStream: Unable to close callback thread.";
+    MUTEX_UNLOCK( &stream_.mutex );
+    error( RtAudioError::THREAD_ERROR );
+    MUTEX_UNLOCK( &stream_.mutex );
+  }
+
   CoUninitialize();
 
   // update stream state
   stream_.state = STREAM_STOPPED;
-    MUTEX_UNLOCK(&stream_.mutex);
+    MUTEX_UNLOCK( &stream_.mutex );
 
   if ( !errorText.empty() )
   {
