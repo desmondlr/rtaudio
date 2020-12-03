@@ -4652,8 +4652,8 @@ void RtApiWasapi::stopStream( void )
   MUTEX_SPINLOCK( &stream_.mutex );
   if ( stream_.state == STREAM_STOPPED ) {
     errorText_ = "RtApiWasapi::stopStream: The stream is already stopped.";
-    error( RtAudioError::WARNING );
     MUTEX_UNLOCK( &stream_.mutex );
+    error( RtAudioError::WARNING );
     return;
   }
 
@@ -4684,8 +4684,8 @@ void RtApiWasapi::abortStream( void )
   MUTEX_SPINLOCK( &stream_.mutex );
   if ( stream_.state == STREAM_STOPPED ) {
     errorText_ = "RtApiWasapi::abortStream: The stream is already stopped.";
-    error( RtAudioError::WARNING );
     MUTEX_UNLOCK( &stream_.mutex );
+    error( RtAudioError::WARNING );
     return;
   }
 
